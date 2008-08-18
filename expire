@@ -37,6 +37,7 @@ foreach my $dir (glob("*")) {
     } elsif (scalar(@files) == 0) {
         # maybe a brand new dir
         system("touch", "$dir/.stamp");
+        system("touch", "$dir/00-Initial-Entry.ok");
 	$newest_stamp = $newest = 0;
     }	
     
