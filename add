@@ -87,5 +87,6 @@ if (!$any || $ret==0) {
 
 system("touch", "$section/.stamp");
 
+# we exit with code zero even if the subprogram failed, because we
+# don't want cron to *also* try to log stuff.
 exit 0;
-
