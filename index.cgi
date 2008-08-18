@@ -102,14 +102,17 @@ for my $_dir (glob("*"))
     @files = sort { mtime($b) <=> mtime($a) } @files;
 
     my $i = 0;
-    while ($i++ < 5 && @files) {
-	push @wanted, shift @files;
+    while ($i < 5 && @files) {
+        my $file = shift @files;
+        my $ok = -r $file && (-z $file || $file =~ /\.ok$/);
+        next if $ok && $fail_only;
+        $i++;
+	push @wanted, $file;
     }
 }
 
 foreach my $file (sort { mtime($b) <=> mtime($a) } @wanted) {
     my $ok = -r $file && (-z $file || $file =~ /\.ok$/);
-    next if $ok && $fail_only;
     my $title = sprintf("%s %s", $ok ? "ok" : "ERROR", $file);
     
     print rss_item("$url/data/$file", mtime($file), $title, catfile($file));
