@@ -1,0 +1,44 @@
+#!/usr/bin/perl -w
+use strict;
+use POSIX qw(strftime);
+
+die("No data/ subdir!") if not -d "data";
+chdir "data";
+
+# delete really old files
+foreach my $file (glob("*/*")) {
+    if (-M $file > 14) {
+	unlink($file);
+    }
+}
+
+# create a warning if the newest file in a dir is too old
+foreach my $dir (glob("*")) {
+    my $newest = 1000;
+    my $newest_stamp = 1000;
+    
+    # the .stamp file notes that the dir has been updated, even if there are
+    # new new interesting entries
+    if (-e "$dir/.stamp") {
+	$newest_stamp = -M "$dir/.stamp";
+    }
+    
+    foreach my $file (glob("$dir/*")) {
+	my $n = -M $file;
+	$newest = $n if ($newest > $n);
+	$newest_stamp = $n if ($newest_stamp > $n);
+    }
+    
+    my $date = strftime("%Y%m%d-%H%M%S", localtime());
+    my $efile = "$dir/$date." . int(rand(100000));
+    
+    if ($newest_stamp > 0.3 || $newest > 1.1) {
+	open my $fh, ">$efile" or die("$efile: $!\n");
+	my $host = `hostname`;
+	$host =~ s/\s+//g;
+	print $fh "WARNING (host=$host): No recent entries in this directory!\n";
+	print $fh "\n";
+	print $fh "Latest stamp is $newest_stamp days old.\n";
+	print $fh "Latest file is $newest days old.\n";
+    }
+}
