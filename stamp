@@ -1,0 +1,31 @@
+#!/usr/bin/perl -w
+use strict;
+use POSIX qw(strftime);
+
+sub dirname($)
+{
+    my $filename = shift @_;
+    $filename =~ m{(.*)/([^/]+)}  &&  return $1;
+    return ".";
+}
+
+my $homedir = dirname($0);
+chdir $homedir
+    or die("Can't find home directory '$homedir'\n");
+
+chdir 'data'
+    or die("No $homedir/data/ subdir!");
+
+if (!@ARGV) {
+    print STDERR "Usage: $0 <sections...>\n";
+    print STDERR "  Mark the given sections as having been touched recently.\n";
+    exit 1;
+}
+
+# update the .stamp in each data folder to show that we've visited it recently
+foreach my $dir (@ARGV) {
+    die("$dir: no such directory!") unless -d $dir;
+    system("touch", "$dir/.stamp");
+}
+
+exit 0;
