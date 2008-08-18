@@ -2,8 +2,19 @@
 use strict;
 use POSIX qw(strftime);
 
-die("No data/ subdir!") if not -d "data";
-chdir "data";
+sub dirname($)
+{
+    my $filename = shift @_;
+    $filename =~ m{(.*)/([^/]+)}  &&  return $1;
+    return ".";
+}
+
+my $homedir = dirname($0);
+chdir $homedir
+    or die("Can't find home directory '$homedir'\n");
+
+chdir 'data'
+    or die("No data/ subdir!");
 
 # delete really old files
 foreach my $file (glob("*/*")) {
@@ -17,11 +28,17 @@ foreach my $dir (glob("*")) {
     my $newest = 1000;
     my $newest_stamp = 1000;
     
+    my @files = glob("$dir/*");
+    
     # the .stamp file notes that the dir has been updated, even if there are
     # new new interesting entries
     if (-e "$dir/.stamp") {
 	$newest_stamp = -M "$dir/.stamp";
-    }
+    } elsif (scalar(@files) == 0) {
+        # maybe a brand new dir
+        system("touch", "$dir/.stamp");
+	$newest_stamp = $newest = 0;
+    }	
     
     foreach my $file (glob("$dir/*")) {
 	my $n = -M $file;
@@ -38,7 +55,7 @@ foreach my $dir (glob("*")) {
 	$host =~ s/\s+//g;
 	print $fh "WARNING (host=$host): No recent entries in this directory!\n";
 	print $fh "\n";
-	print $fh "Latest stamp is $newest_stamp days old.\n";
-	print $fh "Latest file is $newest days old.\n";
+	printf $fh "Latest stamp is %.2f days old.\n", $newest_stamp;
+	printf $fh "Latest file is %.2f days old.\n", $newest;
     }
 }
