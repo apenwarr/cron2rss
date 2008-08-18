@@ -1,0 +1,91 @@
+#!/usr/bin/perl -w
+use strict;
+use POSIX qw(strftime);
+
+sub dirname($)
+{
+    my $filename = shift @_;
+    $filename =~ m{(.*)/([^/]+)}  &&  return $1;
+    return ".";
+}
+
+
+if (@ARGV < 1) {
+    print STDERR "Usage: $0 <section> [commandline...]\n";
+    print STDERR "  Copies stdin or command output to a new logfile in <section>.\n";
+    exit 1;
+}
+
+my $homedir = dirname($0);
+chdir $homedir
+  or die("Can't chdir to home directory: $!\n");
+
+die("Can't find 'data' directory!") unless -d "data";
+chdir("data");
+
+my $section = shift @ARGV;
+
+die("No such section '$homedir/data/$section'\n") unless -d $section;
+
+my $date = strftime("%Y%m%d-%H%M%S", localtime()) . "." . int(rand(100000));
+my $tmpfile = "$homedir/data/$section/.tmp.$date";
+my $realfile = "$homedir/data/$section/$date";
+    
+open my $fh, ">$tmpfile" or die("$tmpfile: $!\n");
+my $host = `hostname`;
+$host =~ s/\s+//g;
+print $fh "Starting: $date on host=$host\n";
+if (@ARGV) {
+    print $fh "Command: " . join(' ', @ARGV) . "\n";
+}
+print $fh "\n";
+
+my $any = 0;
+my $ret = -1;
+if (@ARGV) {
+    my $pid = open(my $infh, "-|");
+    if ($pid) {
+	# main process
+	while (<$infh>) {
+	    if (/^EXIT CODE: (\d+)/) {
+		$ret = $1;
+	    }
+	    print $fh $_;
+	    $any++;
+	}
+	close $infh;
+    } else {
+	# subprocess
+	open STDERR, ">&STDOUT";
+	my $ret = system(@ARGV);
+	if ($ret & 127) {
+	    print "\nSIGNAL: $ret\n";
+	    $ret = 127;
+	} else {
+	    $ret >>= 8;
+	}
+	print "\nEXIT CODE: $ret\n";
+	exit($ret);
+    }
+} else {
+    while (<STDIN>) {
+	print $fh $_;
+	$any++;
+    }
+}
+
+print $fh "No messages.\n" unless $any;
+close $fh;
+
+# Assume zero-length output means success, else failure.
+# (same logic as cron uses)
+if (!$any || $ret==0) {
+    rename($tmpfile, $realfile . ".ok");
+} else {
+    rename($tmpfile, $realfile);
+}
+
+system("touch", "$section/.stamp");
+
+exit 0;
+
