@@ -3,42 +3,52 @@ use strict;
 use CGI qw/:standard/;
 use POSIX qw(strftime);
 
-use lib ".";
+die("No data/ subdir!") if not -d "data";
+chdir "data";
+
 
 sub mtime($)
 {
-	my $filename = shift @_;
-	my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
-	    $atime,$mtime,$ctime,$blksize,$blocks) = stat($filename)
-	    or die("stat $filename: $!\n");
-	return $mtime;
+    my $filename = shift @_;
+    my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
+	$atime,$mtime,$ctime,$blksize,$blocks) = stat($filename)
+      or die("stat $filename: $!\n");
+    return $mtime;
 }
 
 sub catfile(@)
 {
-	my @list = ();
-	foreach my $file (@_) {
-		open my $fh, "<$file" or return "(Can't read file!)";
-		push @list, <$fh>;
-		close $fh;
-	}
-	return join('', @list);
+    my @list = ();
+    foreach my $file (@_) {
+	open my $fh, "<$file" or return "(Can't read file!)";
+	push @list, <$fh>;
+	close $fh;
+    }
+    return join('', @list);
+}
+
+sub dirname($)
+{
+    my $filename = shift @_;
+    $filename =~ m{(.*)/([^/]+)}  &&  return $1;
+    return ".";
 }
 
 sub basename($)
 {
-	my $filename = shift @_;
-	$filename =~ m{.*/([^/]+)}  &&  ($filename = $1);
-	return $filename;
+    my $filename = shift @_;
+    $filename =~ m{(.*)/([^/]+)}  &&  return $2;
+    return $filename;
 }
 
 sub stripwhite($)
 {
-	my $s = shift @_;
-	$s =~ s/^\s+//g;
-	$s =~ s/\s+$//g;
-	return $s;
+    my $s = shift @_;
+    $s =~ s/^\s+//g;
+    $s =~ s/\s+$//g;
+    return $s;
 }
+
 
 
 my $url = url();
@@ -77,7 +87,7 @@ sub rss_item($$$$)
     };
 }
 
-chdir "data";
+my @wanted = ();
 
 for my $_dir (glob("*"))
 {
@@ -86,15 +96,18 @@ for my $_dir (glob("*"))
     
     my @files = glob("$dir/*");
     @files = sort { mtime($b) <=> mtime($a) } @files;
-    
-    foreach my $file (@files) {
-	print rss_item("$url/data/$file", mtime($file), $file, $file);
+
+    my $i = 0;
+    while ($i++ < 5 && @files) {
+	push @wanted, shift @files;
     }
 }
 
-
-# for my $file (</tmp/*>) {
-#    rss_item("$url/data/$file", mtime($file), "File: $file", catfile($file));
-# }
+foreach my $file (sort { mtime($b) <=> mtime($a) } @wanted) {
+    my $ok = -r $file && (-z $file || $file =~ /\.ok$/);
+    my $title = sprintf("%s %s", $ok ? "ok" : "ERROR", $file);
+    
+    print rss_item("$url/data/$file", mtime($file), $title, catfile($file));
+}
 
 print "</channel></rss>";
