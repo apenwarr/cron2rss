@@ -74,6 +74,7 @@ sub rss_item($$$$)
     my ($link, $datecode, $title, $description) = @_;
     
     my $date = strftime("%a, %d %b %Y %H:%M:%S %z", localtime($datecode));
+    $description =~ s/\&/\&amp;/g;
     $description =~ s/</&lt;/g;
     
     return qq{
