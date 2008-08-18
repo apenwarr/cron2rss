@@ -1,0 +1,23 @@
+#!/bin/bash
+
+IHOME="$(dirname "$0")"
+if [ ! -e "$IHOME/install-to" ]; then
+	echo "Assertion failed: can't find self!" >&2
+	exit 1
+fi
+
+if [ -z "$1" ]; then
+	echo "Usage: $0 <rsync-dest>"
+	echo "  Installs cron2rss program files in given rsync destination."
+	exit 2
+fi >&2
+
+mkdir -p "$IHOME/data"
+
+echo "Installing from $IHOME/. to $1..." >&2
+
+rsync -za "$IHOME/." "$1" \
+	--exclude '*~' \
+	--exclude 'data/*'
+
+echo "Done." >&2

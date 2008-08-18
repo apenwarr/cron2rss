@@ -1,0 +1,22 @@
+#!/bin/bash
+
+IHOME="$(dirname "$0")"
+if [ ! -e "$IHOME/data" ]; then
+	echo "Assertion failed: can't find self!" >&2
+	exit 1
+fi
+
+if [ -z "$1" ]; then
+	echo "Usage: $0 <rsync-src>"
+	echo "  Syncs new cron2rss data files from given cron2rss folder."
+	echo "  NOTE: Provide the base cron2rss folder, not the data/ folder."
+	exit 2
+fi >&2
+
+echo "Syncing from $1 to $IHOME/. ..." >&2
+
+rsync -za "$1/data/." "$IHOME/data/." \
+	--exclude '*~'
+
+echo "Done." >&2
+
