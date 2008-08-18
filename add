@@ -17,15 +17,14 @@ if (@ARGV < 1) {
 }
 
 my $homedir = dirname($0);
-chdir $homedir
-  or die("Can't chdir to home directory: $!\n");
+die("Can't find home directory '$homedir'\n") unless -d "$homedir/.";
 
-die("Can't find 'data' directory!") unless -d "data";
-chdir("data");
+die("Can't find 'data' directory!") unless -d "$homedir/data/.";
 
 my $section = shift @ARGV;
 
-die("No such section '$homedir/data/$section'\n") unless -d $section;
+die("No such section '$homedir/data/$section'\n")
+  unless -d "$homedir/data/$section";
 
 my $date = strftime("%Y%m%d-%H%M%S", localtime()) . "." . int(rand(100000));
 my $tmpfile = "$homedir/data/$section/.tmp.$date";
@@ -85,7 +84,7 @@ if (!$any || $ret==0) {
     rename($tmpfile, $realfile);
 }
 
-system("touch", "$section/.stamp");
+system("touch", "$homedir/data/$section/.stamp");
 
 # we exit with code zero even if the subprogram failed, because we
 # don't want cron to *also* try to log stuff.
