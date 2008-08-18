@@ -58,10 +58,13 @@ $url =~ s{/$relative$}{};
 print "Content-Type: text/xml\n";
 print "\n";
 
+my $fail_only = param('q') eq "failed";
+my $ptitle = $fail_only ? "Cron FAIL" : "Cron";
+
 print qq{<rss version='2.0' xmlns:atom="http://www.w3.org/2005/Atom">
 	<channel>
-		<title>Cron</title>
-		<description>Cron</description>
+		<title>$ptitle</title>
+		<description>$ptitle</description>
 		<link>$url</link>
 		<atom:link href="$url/index.cgi" rel="self" type="application/rss+xml" />
 		<language>en-ca</language>
@@ -106,6 +109,7 @@ for my $_dir (glob("*"))
 
 foreach my $file (sort { mtime($b) <=> mtime($a) } @wanted) {
     my $ok = -r $file && (-z $file || $file =~ /\.ok$/);
+    next if $ok && $fail_only;
     my $title = sprintf("%s %s", $ok ? "ok" : "ERROR", $file);
     
     print rss_item("$url/data/$file", mtime($file), $title, catfile($file));
