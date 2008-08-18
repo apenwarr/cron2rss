@@ -1,0 +1,216 @@
+
+INTRODUCTION
+============
+
+cron2rss is a simple set of tools designed to make your cron job (ie.
+scheduled background tasks) output into an RSS feed.  RSS feeds can be
+tracked with your favourite RSS reader such as Firefox.
+
+But cron already knows how to email you the results of your background
+processes, so what's the point?
+
+Well, the result of a cron job can be one of three basic things:
+
+   1) The cron job ran and succeeded.
+   
+   2) The cron job ran and failed.
+   
+   3) The cron job didn't run.
+   
+Cron emails are not very good for #1, because if you have a job running
+every 10 minutes, you don't want the email.  Thus, almost everybody ensures
+that their cron jobs don't generate any output when they're successful, and
+thus they won't generate an email.
+
+You have to be careful when doing this, of course; if you just redirect all
+the stdout and stderr of your cron jobs to /dev/null, then you won't get
+emails in case #2 either - and those emails might have been really useful in
+that case!
+
+Also, case #3 is often overlooked but is a frequent source of problems. 
+What if you cron daemon dies?  What if the jobs are running on a server, and
+the server goes down altogether?  You won't get an email in that case, and
+the *lack* of email is supposed to tell you there's a problem.  But if you,
+like almost everyone, disabled log output for *successful* jobs, then the
+*normal* case is you don't get an email.  That means you have no way of
+detecting when your server goes down, and that's not much good.
+
+cron2rss deals with your cron monitoring problems in these ways:
+
+   1) It keeps log output around even for successful runs.  That means you
+      don't have to redirect anything to /dev/null.  cron2rss detects failed
+      jobs by their exit code, not by their output.
+   
+   2) It has an easy way of viewing *only* failed entries (ie. a separate
+      RSS feed with only the failures)
+      
+   3) It detects the *lack* of new log output for an unusually long time,
+      and reports *that* as an error.
+      
+   4) It makes it easy for you to monitor your logs from a host *other*
+      than the ones running the jobs, so that if your job host goes down,
+      the monitor host can still run.  Plus, a single RSS feed can monitor
+      all your cron jobs.
+      
+   5) It's easy to set up multiple cron2rss monitor servers, so you can
+      subscribe to the RSS feed from more than one machine in case cron2rss
+      itself fails.
+      
+
+HOW IT WORKS
+============
+
+Despite its usefulness, cron2rss operates very simply; a script called
+'cron2rss/add' captures the exit code and stdout/stderr of your cron tasks
+and stores them in a set of log files.  Each different cron task gets its
+output stored in a separate directory.
+
+Then, a script called 'cron2rss/expire' runs periodically to trim out old
+log files, plus create warning messages if any of the log directories hasn't
+received new input for a long time.
+
+If your cron jobs don't run very often, you can also run a script called
+'cron2rss/stamp' more frequently.  Its job is to make note that cron itself
+is running, even though no new log messages have appeared.  This allows
+cron2rss to give you an early warning if it looks like your cron job
+eventually *won't* run, because it notices that the stamp file is out of
+date.
+
+Finally, a script called 'cron2rss/index.cgi' goes through the log messages,
+sorts them in reverse chronological order, and gives you an RSS feed with
+the results.
+
+Because its data structure is so simple (a simple tree of files under the
+cron2rss/data/ folder), it's also simple to replicate cron2rss data from one
+machine to another, and merge the logs from multiple machines into one.  You
+can use the 'cron2rss/data-to' and 'cron2rss/data-from' scripts for this.
+
+
+BASIC INSTALLATION
+==================
+
+You need:
+  - a Unix system with cron and perl installed.
+  - a web server (such as apache) set to serve .cgi files using ExecCgi.
+  - a copy of the cron2rss files in a folder called 'cron2rss'.
+  - an installed copy of rsync, if you want to sync the log files.
+
+Let's set up two simple cron tasks, as follows:
+   a. Try to log into a remote server occasionally to make sure it's okay.
+   b. Try to request a web page occasionally to make sure it works.
+
+Here's what we do.
+
+1. Move your cron2rss files to your ~/public_html directory and cd there:
+
+	mv cron2rss ~/public_html/cron2rss
+	cd ~/public_html/cron2rss
+
+2. Make data folders for your different tasks:
+
+	mkdir data/task-a data/task-b
+
+3. Start the cron job editor:
+
+	crontab -e
+	
+4. Add lines for the cron2rss housekeeping tasks:
+
+	1 *  * * *   ~/public_html/cron2rss/expire
+	2 *  * * *   ~/public_html/cron2rss/stamp task-a task-b
+
+5. Add lines for your actual tasks:
+
+	11 * * * *   ~/public_html/cron2rss/add task-a ssh myhost true
+	0 4,8,12,16,20  * * *   ~/public_html/cron2rss/add task-b wget -O/dev/null http://myserver.com/
+
+6. Save and exit the cron job editor.
+
+7. Visit the cron2rss RSS feeds using your RSS-enabled web browser, such as
+   Firefox:
+   	http://localhost/~username/cron2rss/
+   	http://localhost/~username/cron2rss/failed/
+
+   Of course, replace 'localhost' with the name of the server where cron2rss
+   is installed, and 'username' with your username where the public_html
+   folder exists.
+   
+   The first URL shows *all* log entries, and the second one shows only 
+   *failed* log entries.  Use the first one for now, as it's easier.
+   
+8. Make a couple of test log entries rather than waiting for cron:
+
+	~/public_html/cron2rss/add task-a true
+	~/public_html/cron2rss/add task-a ssh myhost true
+
+9. Ensure that the entries show up in your RSS feed.
+
+If you go this far, then congratulations!  cron2rss is working fine!
+
+
+
+MONITORING MULTIPLE SERVERS IN A SINGLE FEED
+============================================
+
+Let's say you have a second server, bobserver, that also has some tasks it
+needs to run, and you want to monitor those tasks too.  Plus, bobserver
+tends to crash a lot, so you want to be sure to notice if you stop getting
+updates from it.  Here's how you set it up, assuming you've already done the
+above steps.
+
+1. Go to the cron2rss folder on your main server.
+
+	cd ~/public_html/cron2rss
+	
+2. Install the cron2rss files on bobserver.
+
+	./install-to bobserver:~/cron2rss
+
+3. Go over to bobserver and create a data folder for task-c.
+
+	ssh bobserver
+	cd cron2rss
+	mkdir data/task-c
+
+4. Start the cron job editor on bobserver:
+
+	crontab -e
+	
+5. Add lines for the cron2rss housekeeping tasks:
+
+	1 *  * * *   ~/public_html/cron2rss/expire
+	2 *  * * *   ~/public_html/cron2rss/stamp task-c
+
+6. Add lines for your actual task:
+
+	42 * * * *   ~/public_html/cron2rss/add task-c df
+	
+7. Add a line to send the data back to your main server:
+
+	45 * * * *   ~/public_html/cron2rss/data-to mainserver:public_html/cron2rss
+
+8. Save and exit the cron job editor.
+
+Now, the directories for task-a and task-b will be created and updated on
+mainserver, and task-c will be sent to mainserver from bobserver.  All three
+tasks can be viewed using the RSS feed.
+
+If bobserver crashes, then it won't be able to transmit any new data into
+the task-c folder on mainserver.  Thus, the cron2rss/expire task on
+mainserver will eventually notice that task-c hasn't been updated, and issue
+its own warning.  You'll then find out that bobserver isn't working right. 
+Perfect!
+
+There's one more catch: what if, like most people, your random servers (such
+as bobserver) aren't supposed to be able to ssh into your log server
+(mainserver)?  Well, you can do it the other way too.  On mainserver, set up
+a cron entry like this:
+
+	45 * * * *  ~/public_html/cron2rss/data-from bobserver:cron2rss
+	
+Note that we're using data-from here instead of data-to.
+
+Good luck!
+
+Avery
+apenwarr@gmail.com
