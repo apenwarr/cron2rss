@@ -58,7 +58,7 @@ $url =~ s{/$relative$}{};
 print "Content-Type: text/xml\n";
 print "\n";
 
-my $fail_only = param('q') eq "failed";
+my $fail_only = defined(param('q')) && param('q') eq "failed";
 my $ptitle = $fail_only ? "Cron FAIL" : "Cron";
 
 print qq{<rss version='2.0' xmlns:atom="http://www.w3.org/2005/Atom">
