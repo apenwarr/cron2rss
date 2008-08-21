@@ -3,6 +3,8 @@ use strict;
 use CGI qw/:standard/;
 use POSIX qw(strftime);
 
+binmode STDOUT, ":utf8";
+
 die("No data/ subdir!") if not -d "data";
 chdir "data";
 
@@ -79,6 +81,8 @@ sub rss_item($$$$)
     my $date = strftime("%a, %d %b %Y %H:%M:%S %z", localtime($datecode));
     $description =~ s/\&/\&amp;/g;
     $description =~ s/</&lt;/g;
+
+    die unless utf8::valid($description . $title . $date . $link);
     
     return qq{
 	<item>
