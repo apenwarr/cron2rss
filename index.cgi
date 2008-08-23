@@ -51,6 +51,20 @@ sub stripwhite($)
     return $s;
 }
 
+sub shorten($$)
+{
+	my ($s, $len) = @_;
+	if (length($s) > $len) {
+	        return substr($s, 0, $len/2)
+	            . "\n\n ... PARTS OMITTED FROM RSS FEED ...\n\n"
+	            . substr($s, length($s)-$len/2);
+	} else {
+		return $s;
+	}
+}
+
+
+
 
 
 my $url = url();
@@ -81,6 +95,7 @@ sub rss_item($$$$)
     my $date = strftime("%a, %d %b %Y %H:%M:%S %z", localtime($datecode));
     $description =~ s/\&/\&amp;/g;
     $description =~ s/</&lt;/g;
+    $description = shorten($description, 10240);
 
     die unless utf8::valid($description . $title . $date . $link);
     
